@@ -1,0 +1,2 @@
+- [Neuralix auth pattern](neuralix-auth.md) — JWT httpOnly cookies + Discord OAuth2; credentials:include required in custom-fetch for cross-origin cookie sending.
+- [Neuralix owner access](neuralix-owner.md) — Owner/admin access gated by OWNER_DISCORD_IDS env var (comma-separated Discord IDs); without it no user gets admin panel access.

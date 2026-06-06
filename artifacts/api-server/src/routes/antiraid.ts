@@ -1,0 +1,51 @@
+import { Router } from "express";
+import { db, antiraidConfigsTable, antiraidStatsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { requireAuth } from "../lib/auth";
+
+const router = Router();
+
+const defaultConfig = {
+  enabled: false, antiAlt: false, antiAltMinAge: 7, antiBot: false, antiBotWhitelist: [],
+  antiSpam: false, antiSpamLimit: 5, antiLinks: false, allowedDomains: [], blockedDomains: [],
+  antiMassMention: false, massMentionLimit: 5, antiWebhook: false, antiChannelCreate: false,
+  antiChannelDelete: false, antiChannelUpdate: false, antiRoleCreate: false, antiRoleDelete: false,
+  antiRoleUpdate: false, antiEmojiCreate: false, antiEmojiDelete: false, antiBanMass: false,
+  antiKickMass: false, antiNuke: false,
+};
+
+router.get("/guilds/:guildId/antiraid", requireAuth, async (req, res) => {
+  const { guildId } = req.params;
+  let [cfg] = await db.select().from(antiraidConfigsTable).where(eq(antiraidConfigsTable.guildId, guildId));
+  if (!cfg) {
+    const [created] = await db.insert(antiraidConfigsTable).values({ guildId, ...defaultConfig }).returning();
+    cfg = created;
+  }
+  res.json({ ...cfg, antiBotWhitelist: cfg.antiBotWhitelist || [], allowedDomains: cfg.allowedDomains || [], blockedDomains: cfg.blockedDomains || [] });
+});
+
+router.put("/guilds/:guildId/antiraid", requireAuth, async (req, res) => {
+  const { guildId } = req.params;
+  const existing = await db.select().from(antiraidConfigsTable).where(eq(antiraidConfigsTable.guildId, guildId));
+  let cfg;
+  if (existing.length > 0) {
+    const [updated] = await db.update(antiraidConfigsTable).set(req.body).where(eq(antiraidConfigsTable.guildId, guildId)).returning();
+    cfg = updated;
+  } else {
+    const [created] = await db.insert(antiraidConfigsTable).values({ guildId, ...defaultConfig, ...req.body }).returning();
+    cfg = created;
+  }
+  res.json({ ...cfg, antiBotWhitelist: cfg.antiBotWhitelist || [], allowedDomains: cfg.allowedDomains || [], blockedDomains: cfg.blockedDomains || [] });
+});
+
+router.get("/guilds/:guildId/antiraid/stats", requireAuth, async (req, res) => {
+  const { guildId } = req.params;
+  let [stats] = await db.select().from(antiraidStatsTable).where(eq(antiraidStatsTable.guildId, guildId));
+  if (!stats) {
+    const [created] = await db.insert(antiraidStatsTable).values({ guildId }).returning();
+    stats = created;
+  }
+  res.json(stats);
+});
+
+export default router;
