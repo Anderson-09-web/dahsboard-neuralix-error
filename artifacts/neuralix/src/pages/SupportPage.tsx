@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MessageSquare, Send, Plus, ChevronRight, Clock } from "lucide-react";
-import { useGetSupportTickets, useCreateSupportTicket, useGetSupportMessages, useSendSupportMessage, getGetSupportTicketsQueryKey } from "@workspace/api-client-react";
+import { useGetSupportTickets, useCreateSupportTicket, useGetSupportMessages, useSendSupportMessage, getGetSupportTicketsQueryKey, getGetSupportMessagesQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ export default function SupportPage() {
 
   const { data: tickets, isLoading } = useGetSupportTickets({ query: { queryKey: getGetSupportTicketsQueryKey() } });
   const createTicket = useCreateSupportTicket();
-  const { data: messages } = useGetSupportMessages(selectedId!, { query: { enabled: !!selectedId } });
+  const { data: messages } = useGetSupportMessages(selectedId!, { query: { enabled: !!selectedId, queryKey: getGetSupportMessagesQueryKey(selectedId!) } });
   const sendMessage = useSendSupportMessage();
 
   const handleCreate = () => {

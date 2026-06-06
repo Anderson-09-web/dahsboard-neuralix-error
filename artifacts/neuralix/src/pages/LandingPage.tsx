@@ -75,16 +75,16 @@ export default function LandingPage() {
                 {user ? "Ir al panel ahora" : "Conectar con Discord"}
                 <ArrowRight className="w-5 h-5" />
               </Button>
-              <Button size="lg" variant="outline" className="gap-2 text-base px-8">
+              <Button size="lg" variant="outline" className="gap-2 text-base px-8" onClick={() => setLocation("/docs")}>
                 Ver documentacion
               </Button>
             </div>
           </motion.div>
 
-          {/* Stats */}
+          {/* Features highlight */}
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}
             className="mt-16 grid grid-cols-3 gap-8 max-w-lg mx-auto">
-            {[["10K+", "Servidores"], ["2M+", "Usuarios protegidos"], ["99.9%", "Uptime"]].map(([val, label]) => (
+            {[["20+", "Modulos AntiRaid"], ["100%", "Codigo propio"], ["24/7", "Proteccion activa"]].map(([val, label]) => (
               <div key={label} className="text-center">
                 <div className="text-3xl font-black text-primary">{val}</div>
                 <div className="text-xs text-muted-foreground mt-1">{label}</div>
