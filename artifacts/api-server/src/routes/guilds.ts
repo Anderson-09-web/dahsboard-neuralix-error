@@ -15,6 +15,13 @@ function hasAdminPerms(permissions: string): boolean {
   return (perms & BigInt(ADMINISTRATOR)) !== 0n || (perms & BigInt(MANAGE_GUILD)) !== 0n;
 }
 
+async function ensureGuildConfig(guildId: string, guildName: string, guildIcon: string | null) {
+  const existing = await db.select().from(guildConfigsTable).where(eq(guildConfigsTable.guildId, guildId));
+  if (existing.length === 0) {
+    await db.insert(guildConfigsTable).values({ guildId, guildName, guildIcon: guildIcon || null, memberCount: 0, botPresent: false }).onConflictDoNothing();
+  }
+}
+
 router.get("/guilds", requireAuth, async (req, res) => {
   const user = (req as any).user;
   try {
@@ -39,30 +46,27 @@ router.get("/guilds", requireAuth, async (req, res) => {
       };
     });
 
+    for (const g of adminGuilds) {
+      ensureGuildConfig(g.id, g.name, g.icon).catch(() => {});
+    }
+
     res.json(result);
   } catch (err: any) {
     req.log.error({ err }, "Failed to fetch guilds");
-    res.status(500).json({ error: "Failed to fetch guilds" });
+    res.status(500).json({ error: "Failed to fetch guilds from Discord. Tu sesion puede haber expirado — vuelve a iniciar sesion." });
   }
 });
 
 router.get("/guilds/:guildId", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const [cfg] = await db.select().from(guildConfigsTable).where(eq(guildConfigsTable.guildId, guildId));
 
-  const [openTicketsResult] = await db
-    .select({ count: count() })
-    .from(ticketsTable)
-    .where(eq(ticketsTable.guildId, guildId));
-
-  const [verifiedResult] = await db
-    .select({ count: count() })
-    .from(verificationConfigsTable)
-    .where(eq(verificationConfigsTable.guildId, guildId));
+  const [openTicketsResult] = await db.select({ count: count() }).from(ticketsTable).where(eq(ticketsTable.guildId, guildId));
+  const [verifiedResult] = await db.select({ count: count() }).from(verificationConfigsTable).where(eq(verificationConfigsTable.guildId, guildId));
 
   res.json({
     id: guildId,
-    name: cfg?.guildName || "Unknown Server",
+    name: cfg?.guildName || "Servidor",
     icon: cfg?.guildIcon || null,
     memberCount: cfg?.memberCount || 0,
     onlineMemberCount: Math.floor((cfg?.memberCount || 0) * 0.3),
@@ -76,11 +80,10 @@ router.get("/guilds/:guildId", requireAuth, async (req, res) => {
 });
 
 router.get("/guilds/:guildId/stats", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const [cfg] = await db.select().from(guildConfigsTable).where(eq(guildConfigsTable.guildId, guildId));
   const [stats] = await db.select().from(antiraidStatsTable).where(eq(antiraidStatsTable.guildId, guildId));
   const [openTickets] = await db.select({ count: count() }).from(ticketsTable).where(eq(ticketsTable.guildId, guildId));
-  const [closedTickets] = await db.select({ count: count() }).from(ticketsTable).where(eq(ticketsTable.guildId, guildId));
   const [backupsCount] = await db.select({ count: count() }).from(backupsTable).where(eq(backupsTable.guildId, guildId));
   const [recentLogs] = await db.select({ count: count() }).from(logEntriesTable).where(eq(logEntriesTable.guildId, guildId));
 
@@ -89,7 +92,7 @@ router.get("/guilds/:guildId/stats", requireAuth, async (req, res) => {
     memberCount: cfg?.memberCount || 0,
     onlineCount: Math.floor((cfg?.memberCount || 0) * 0.3),
     openTickets: openTickets?.count || 0,
-    closedTickets: closedTickets?.count || 0,
+    closedTickets: 0,
     verifiedMembers: 0,
     antiraidDetections: stats?.totalDetections || 0,
     recentLogs: recentLogs?.count || 0,
@@ -98,7 +101,7 @@ router.get("/guilds/:guildId/stats", requireAuth, async (req, res) => {
 });
 
 router.get("/guilds/:guildId/bot-status", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const [cfg] = await db.select().from(guildConfigsTable).where(eq(guildConfigsTable.guildId, guildId));
   const clientId = process.env.DISCORD_CLIENT_ID!;
   const addBotUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot%20applications.commands&guild_id=${guildId}`;

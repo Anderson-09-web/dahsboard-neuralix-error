@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { VariablesModal, GOODBYE_VARIABLES } from "@/components/VariablesModal";
 
 export default function GoodbyePage() {
   const { guildId } = useParams<{ guildId: string }>();
@@ -39,7 +40,7 @@ export default function GoodbyePage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-black mb-1">Sistema de Despedidas</h1>
-          <p className="text-muted-foreground text-sm">Configura los mensajes de despedida cuando un miembro abandona.</p>
+          <p className="text-muted-foreground text-sm">Configura los mensajes cuando un miembro abandona el servidor.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" size="sm" onClick={() => testGoodbye.mutate({ guildId }, { onSuccess: () => toast({ title: "Mensaje de prueba enviado" }) })} data-testid="btn-test-goodbye">Probar</Button>
@@ -58,27 +59,53 @@ export default function GoodbyePage() {
             <Input placeholder="ID del canal" value={cfg.channelId || ""} onChange={(e) => set("channelId")(e.target.value)} data-testid="input-goodbye-channel" />
           </div>
           <div>
-            <Label className="text-sm mb-1.5 block">Mensaje de despedida</Label>
-            <Textarea placeholder="Usa {user} para mencionar al miembro" value={cfg.message || ""} onChange={(e) => set("message")(e.target.value)} rows={4} data-testid="textarea-goodbye-message" />
-            <p className="text-xs text-muted-foreground mt-1.5">Variables: {"{user}"}, {"{server}"}, {"{memberCount}"}</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <Label className="text-sm">Mensaje de despedida</Label>
+              <VariablesModal variables={GOODBYE_VARIABLES} onInsert={(v) => setCfg((c: any) => ({ ...c, message: (c.message || "") + v }))} />
+            </div>
+            <Textarea
+              placeholder="Hasta luego {user}! Nos quedan {membercount} miembros."
+              value={cfg.message || ""}
+              onChange={(e) => set("message")(e.target.value)}
+              rows={4}
+              data-testid="textarea-goodbye-message"
+            />
           </div>
         </div>
 
         <div className="bg-card border border-card-border rounded-xl p-6 space-y-5">
-          <h3 className="font-semibold text-sm">Embed</h3>
           <div className="flex items-center justify-between">
-            <Label className="text-sm">Usar embed</Label>
+            <h3 className="font-semibold text-sm">Embed</h3>
             <Switch checked={cfg.embedEnabled} onCheckedChange={set("embedEnabled")} data-testid="toggle-goodbye-embed" />
           </div>
           {cfg.embedEnabled && (
             <>
               <div>
-                <Label className="text-sm mb-1.5 block">Titulo</Label>
-                <Input placeholder="Titulo" value={cfg.embedTitle || ""} onChange={(e) => set("embedTitle")(e.target.value)} />
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-sm">Titulo</Label>
+                  <VariablesModal variables={GOODBYE_VARIABLES} onInsert={(v) => setCfg((c: any) => ({ ...c, embedTitle: (c.embedTitle || "") + v }))} />
+                </div>
+                <Input placeholder="Adios!" value={cfg.embedTitle || ""} onChange={(e) => set("embedTitle")(e.target.value)} />
               </div>
               <div>
-                <Label className="text-sm mb-1.5 block">Descripcion</Label>
-                <Textarea placeholder="Descripcion" value={cfg.embedDescription || ""} onChange={(e) => set("embedDescription")(e.target.value)} rows={3} />
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-sm">Descripcion</Label>
+                  <VariablesModal variables={GOODBYE_VARIABLES} onInsert={(v) => setCfg((c: any) => ({ ...c, embedDescription: (c.embedDescription || "") + v }))} />
+                </div>
+                <Textarea placeholder="{user} ha abandonado el servidor." value={cfg.embedDescription || ""} onChange={(e) => set("embedDescription")(e.target.value)} rows={3} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm mb-1.5 block">Color (hex)</Label>
+                  <div className="flex gap-2">
+                    <Input placeholder="#ED4245" value={cfg.embedColor || ""} onChange={(e) => set("embedColor")(e.target.value)} />
+                    {cfg.embedColor && <div className="w-10 h-10 rounded-lg border border-border flex-shrink-0" style={{ backgroundColor: cfg.embedColor }} />}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm mb-1.5 block">Footer</Label>
+                  <Input placeholder="Neuralix Enterprise" value={cfg.embedFooter || ""} onChange={(e) => set("embedFooter")(e.target.value)} />
+                </div>
               </div>
             </>
           )}

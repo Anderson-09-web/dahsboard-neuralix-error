@@ -13,7 +13,7 @@ const PLANS = [
 ];
 
 router.get("/guilds/:guildId/premium", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const [cfg] = await db.select().from(guildConfigsTable).where(eq(guildConfigsTable.guildId, guildId));
   const features = cfg?.premiumPlan ? PLANS.find((p) => p.id === cfg.premiumPlan)?.features || [] : [];
   res.json({
@@ -25,11 +25,11 @@ router.get("/guilds/:guildId/premium", requireAuth, async (req, res) => {
   });
 });
 
-router.get("/premium/plans", async (req, res) => {
+router.get("/premium/plans", async (_req, res) => {
   res.json(PLANS);
 });
 
-router.get("/admin/licenses", requireOwner, async (req, res) => {
+router.get("/admin/licenses", requireOwner, async (_req, res) => {
   const licenses = await db.select().from(licensesTable).orderBy(licensesTable.createdAt);
   res.json(licenses);
 });
@@ -45,7 +45,8 @@ router.post("/admin/licenses", requireOwner, async (req, res) => {
 });
 
 router.delete("/admin/licenses/:id", requireOwner, async (req, res) => {
-  await db.update(licensesTable).set({ active: false }).where(eq(licensesTable.id, Number(req.params.id)));
+  const id = Number(req.params.id as string);
+  await db.update(licensesTable).set({ active: false }).where(eq(licensesTable.id, id));
   res.status(204).send();
 });
 

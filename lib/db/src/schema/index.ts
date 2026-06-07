@@ -10,3 +10,4 @@ export * from "./blacklist";
 export * from "./backups";
 export * from "./premium";
 export * from "./support";
+export * from "./admins";

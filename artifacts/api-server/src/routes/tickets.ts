@@ -6,7 +6,7 @@ import { requireAuth } from "../lib/auth";
 const router = Router();
 
 router.get("/guilds/:guildId/tickets/config", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   let [cfg] = await db.select().from(ticketConfigsTable).where(eq(ticketConfigsTable.guildId, guildId));
   if (!cfg) {
     const [created] = await db.insert(ticketConfigsTable).values({ guildId }).returning();
@@ -16,7 +16,7 @@ router.get("/guilds/:guildId/tickets/config", requireAuth, async (req, res) => {
 });
 
 router.put("/guilds/:guildId/tickets/config", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const existing = await db.select().from(ticketConfigsTable).where(eq(ticketConfigsTable.guildId, guildId));
   let cfg;
   if (existing.length > 0) {
@@ -30,13 +30,13 @@ router.put("/guilds/:guildId/tickets/config", requireAuth, async (req, res) => {
 });
 
 router.get("/guilds/:guildId/tickets", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const tickets = await db.select().from(ticketsTable).where(eq(ticketsTable.guildId, guildId));
   res.json(tickets);
 });
 
 router.post("/guilds/:guildId/tickets/:ticketId/close", requireAuth, async (req, res) => {
-  const ticketId = Number(req.params.ticketId);
+  const ticketId = Number(req.params.ticketId as string);
   await db.update(ticketsTable).set({ status: "closed", closedAt: new Date() }).where(eq(ticketsTable.id, ticketId));
   res.json({ ok: true });
 });

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { VariablesModal, WELCOME_VARIABLES } from "@/components/VariablesModal";
 
 export default function WelcomePage() {
   const { guildId } = useParams<{ guildId: string }>();
@@ -52,6 +53,7 @@ export default function WelcomePage() {
       </div>
 
       <div className="max-w-2xl space-y-6">
+        {/* General */}
         <div className="bg-card border border-card-border rounded-xl p-6 space-y-5">
           <div className="flex items-center justify-between">
             <Label>Activar bienvenidas</Label>
@@ -62,48 +64,90 @@ export default function WelcomePage() {
             <Input placeholder="ID del canal" value={cfg.channelId || ""} onChange={(e) => set("channelId")(e.target.value)} data-testid="input-welcome-channel" />
           </div>
           <div>
-            <Label className="text-sm mb-1.5 block">Mensaje de bienvenida</Label>
-            <Textarea placeholder="Usa {user} para mencionar al miembro, {server} para el nombre del servidor" value={cfg.message || ""} onChange={(e) => set("message")(e.target.value)} rows={4} data-testid="textarea-welcome-message" />
-            <p className="text-xs text-muted-foreground mt-1.5">Variables: {"{user}"}, {"{server}"}, {"{memberCount}"}</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <Label className="text-sm">Mensaje de bienvenida</Label>
+              <VariablesModal variables={WELCOME_VARIABLES} onInsert={(v) => setCfg((c: any) => ({ ...c, message: (c.message || "") + v }))} />
+            </div>
+            <Textarea
+              placeholder="Usa {user} para mencionar al miembro, {server} para el nombre del servidor..."
+              value={cfg.message || ""}
+              onChange={(e) => set("message")(e.target.value)}
+              rows={4}
+              data-testid="textarea-welcome-message"
+            />
           </div>
         </div>
 
+        {/* Embed */}
         <div className="bg-card border border-card-border rounded-xl p-6 space-y-5">
-          <h3 className="font-semibold text-sm">Embed</h3>
           <div className="flex items-center justify-between">
-            <Label className="text-sm">Usar embed</Label>
+            <h3 className="font-semibold text-sm">Embed</h3>
             <Switch checked={cfg.embedEnabled} onCheckedChange={set("embedEnabled")} data-testid="toggle-embed" />
           </div>
           {cfg.embedEnabled && (
             <>
               <div>
-                <Label className="text-sm mb-1.5 block">Titulo del embed</Label>
-                <Input placeholder="Titulo" value={cfg.embedTitle || ""} onChange={(e) => set("embedTitle")(e.target.value)} data-testid="input-embed-title" />
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-sm">Titulo del embed</Label>
+                  <VariablesModal variables={WELCOME_VARIABLES} onInsert={(v) => setCfg((c: any) => ({ ...c, embedTitle: (c.embedTitle || "") + v }))} />
+                </div>
+                <Input placeholder="Bienvenido al servidor!" value={cfg.embedTitle || ""} onChange={(e) => set("embedTitle")(e.target.value)} data-testid="input-embed-title" />
               </div>
               <div>
-                <Label className="text-sm mb-1.5 block">Descripcion del embed</Label>
-                <Textarea placeholder="Descripcion" value={cfg.embedDescription || ""} onChange={(e) => set("embedDescription")(e.target.value)} rows={3} data-testid="textarea-embed-desc" />
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-sm">Descripcion del embed</Label>
+                  <VariablesModal variables={WELCOME_VARIABLES} onInsert={(v) => setCfg((c: any) => ({ ...c, embedDescription: (c.embedDescription || "") + v }))} />
+                </div>
+                <Textarea placeholder="Hola {user}, bienvenido a {server}!" value={cfg.embedDescription || ""} onChange={(e) => set("embedDescription")(e.target.value)} rows={3} data-testid="textarea-embed-desc" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm mb-1.5 block">Color (hex)</Label>
+                  <div className="flex gap-2">
+                    <Input placeholder="#5865F2" value={cfg.embedColor || ""} onChange={(e) => set("embedColor")(e.target.value)} data-testid="input-embed-color" />
+                    {cfg.embedColor && <div className="w-10 h-10 rounded-lg border border-border flex-shrink-0" style={{ backgroundColor: cfg.embedColor }} />}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm mb-1.5 block">Footer</Label>
+                  <Input placeholder="Neuralix Enterprise" value={cfg.embedFooter || ""} onChange={(e) => set("embedFooter")(e.target.value)} />
+                </div>
               </div>
               <div>
-                <Label className="text-sm mb-1.5 block">Color (hex)</Label>
-                <Input placeholder="#5865F2" value={cfg.embedColor || ""} onChange={(e) => set("embedColor")(e.target.value)} data-testid="input-embed-color" />
+                <Label className="text-sm mb-1.5 block">Imagen (URL)</Label>
+                <Input placeholder="https://..." value={cfg.embedImage || ""} onChange={(e) => set("embedImage")(e.target.value)} />
               </div>
             </>
           )}
         </div>
 
+        {/* DM */}
         <div className="bg-card border border-card-border rounded-xl p-6 space-y-5">
-          <h3 className="font-semibold text-sm">Mensaje privado (DM)</h3>
           <div className="flex items-center justify-between">
-            <Label className="text-sm">Enviar DM al unirse</Label>
+            <h3 className="font-semibold text-sm">Mensaje privado (DM)</h3>
             <Switch checked={cfg.dmEnabled} onCheckedChange={set("dmEnabled")} data-testid="toggle-dm" />
           </div>
           {cfg.dmEnabled && (
             <div>
-              <Label className="text-sm mb-1.5 block">Mensaje DM</Label>
-              <Textarea placeholder="Mensaje privado de bienvenida" value={cfg.dmMessage || ""} onChange={(e) => set("dmMessage")(e.target.value)} rows={3} data-testid="textarea-dm-message" />
+              <div className="flex items-center justify-between mb-1.5">
+                <Label className="text-sm">Mensaje DM</Label>
+                <VariablesModal variables={WELCOME_VARIABLES} onInsert={(v) => setCfg((c: any) => ({ ...c, dmMessage: (c.dmMessage || "") + v }))} />
+              </div>
+              <Textarea placeholder="Bienvenido a {server}! Por favor lee las reglas..." value={cfg.dmMessage || ""} onChange={(e) => set("dmMessage")(e.target.value)} rows={3} data-testid="textarea-dm-message" />
             </div>
           )}
+        </div>
+
+        {/* AutoRoles */}
+        <div className="bg-card border border-card-border rounded-xl p-6 space-y-4">
+          <h3 className="font-semibold text-sm">AutoRoles</h3>
+          <p className="text-xs text-muted-foreground">IDs de roles separados por coma que se asignaran automaticamente al unirse.</p>
+          <Input
+            placeholder="111222333, 444555666"
+            value={Array.isArray(cfg.autoRoleIds) ? cfg.autoRoleIds.join(", ") : (cfg.autoRoleIds || "")}
+            onChange={(e) => set("autoRoleIds")(e.target.value.split(",").map((s: string) => s.trim()).filter(Boolean))}
+            data-testid="input-autoroles"
+          />
         </div>
       </div>
     </Layout>

@@ -6,7 +6,7 @@ import { requireAuth } from "../lib/auth";
 const router = Router();
 
 router.get("/guilds/:guildId/logs/config", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   let [cfg] = await db.select().from(logsConfigsTable).where(eq(logsConfigsTable.guildId, guildId));
   if (!cfg) {
     const [created] = await db.insert(logsConfigsTable).values({ guildId }).returning();
@@ -16,7 +16,7 @@ router.get("/guilds/:guildId/logs/config", requireAuth, async (req, res) => {
 });
 
 router.put("/guilds/:guildId/logs/config", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const existing = await db.select().from(logsConfigsTable).where(eq(logsConfigsTable.guildId, guildId));
   let cfg;
   if (existing.length > 0) {
@@ -30,7 +30,7 @@ router.put("/guilds/:guildId/logs/config", requireAuth, async (req, res) => {
 });
 
 router.get("/guilds/:guildId/logs", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const entries = await db.select().from(logEntriesTable).where(eq(logEntriesTable.guildId, guildId)).orderBy(desc(logEntriesTable.createdAt)).limit(100);
   res.json(entries);
 });

@@ -6,13 +6,13 @@ import { requireAuth } from "../lib/auth";
 const router = Router();
 
 router.get("/guilds/:guildId/backups", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const backups = await db.select().from(backupsTable).where(eq(backupsTable.guildId, guildId)).orderBy(desc(backupsTable.createdAt));
   res.json(backups);
 });
 
 router.post("/guilds/:guildId/backups", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const [welcome] = await db.select().from(welcomeConfigsTable).where(eq(welcomeConfigsTable.guildId, guildId));
   const [goodbye] = await db.select().from(goodbyeConfigsTable).where(eq(goodbyeConfigsTable.guildId, guildId));
   const [antiraid] = await db.select().from(antiraidConfigsTable).where(eq(antiraidConfigsTable.guildId, guildId));
@@ -35,8 +35,9 @@ router.post("/guilds/:guildId/backups", requireAuth, async (req, res) => {
 });
 
 router.post("/guilds/:guildId/backups/:backupId/restore", requireAuth, async (req, res) => {
-  const { guildId, backupId } = req.params;
-  const [backup] = await db.select().from(backupsTable).where(eq(backupsTable.id, Number(backupId)));
+  const guildId = req.params.guildId as string;
+  const backupId = Number(req.params.backupId as string);
+  const [backup] = await db.select().from(backupsTable).where(eq(backupsTable.id, backupId));
   if (!backup) { res.status(404).json({ error: "Backup not found" }); return; }
 
   const data = backup.data as any;

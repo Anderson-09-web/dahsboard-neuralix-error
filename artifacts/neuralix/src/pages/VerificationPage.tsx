@@ -6,9 +6,11 @@ import Layout from "@/components/Layout";
 import ToggleModule from "@/components/ToggleModule";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { VariablesModal, VERIFICATION_VARIABLES } from "@/components/VariablesModal";
 
 export default function VerificationPage() {
   const { guildId } = useParams<{ guildId: string }>();
@@ -44,6 +46,7 @@ export default function VerificationPage() {
       </div>
 
       <div className="max-w-2xl space-y-4">
+        {/* Core settings */}
         <div className="bg-card border border-card-border rounded-xl p-6 space-y-5">
           <div className="flex items-center justify-between">
             <div>
@@ -57,20 +60,55 @@ export default function VerificationPage() {
             <Input placeholder="ID del rol que se asignara al verificarse" value={cfg.roleId || ""} onChange={(e) => set("roleId")(e.target.value)} data-testid="input-verification-role" />
           </div>
           <div>
+            <Label className="text-sm mb-1.5 block">Canal de logs de verificacion (ID)</Label>
+            <Input placeholder="ID del canal de auditoria" value={cfg.logChannelId || ""} onChange={(e) => set("logChannelId")(e.target.value)} />
+          </div>
+          <div>
             <Label className="text-sm mb-1.5 block">Edad minima de cuenta (dias)</Label>
             <Input type="number" value={cfg.minAccountAge} onChange={(e) => set("minAccountAge")(Number(e.target.value))} className="w-32" data-testid="input-min-age" />
           </div>
         </div>
 
+        {/* Filters */}
         <ToggleModule title="AntiVPN" description="Bloquea usuarios conectados via VPN o proxy" enabled={cfg.antiVpn} onToggle={set("antiVpn")} badge="Recomendado" />
-        <ToggleModule title="AntiAlt" description="Bloquea cuentas que parecen ser alternativas" enabled={cfg.antiAlt} onToggle={set("antiAlt")} badge="Recomendado" />
-        <ToggleModule title="AntiBot" description="Bloquea cuentas identificadas como bots" enabled={cfg.antiBot} onToggle={set("antiBot")} />
+        <ToggleModule title="AntiAlt" description="Bloquea cuentas que parecen ser alternativas (edad < minima)" enabled={cfg.antiAlt} onToggle={set("antiAlt")} badge="Recomendado" />
+        <ToggleModule title="AntiBot" description="Bloquea cuentas identificadas como bots no autorizados" enabled={cfg.antiBot} onToggle={set("antiBot")} />
 
+        {/* Custom messages */}
+        <div className="bg-card border border-card-border rounded-xl p-6 space-y-5">
+          <h3 className="font-semibold text-sm">Mensajes personalizados</h3>
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <Label className="text-sm">Mensaje al verificarse</Label>
+              <VariablesModal variables={VERIFICATION_VARIABLES} onInsert={(v) => setCfg((c: any) => ({ ...c, successMessage: (c.successMessage || "") + v }))} />
+            </div>
+            <Textarea
+              placeholder="Bienvenido {user}! Has sido verificado correctamente en {server}."
+              value={cfg.successMessage || ""}
+              onChange={(e) => set("successMessage")(e.target.value)}
+              rows={2}
+            />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <Label className="text-sm">Mensaje al rechazar</Label>
+              <VariablesModal variables={VERIFICATION_VARIABLES} onInsert={(v) => setCfg((c: any) => ({ ...c, rejectMessage: (c.rejectMessage || "") + v }))} />
+            </div>
+            <Textarea
+              placeholder="Tu cuenta no cumple los requisitos de verificacion de {server}."
+              value={cfg.rejectMessage || ""}
+              onChange={(e) => set("rejectMessage")(e.target.value)}
+              rows={2}
+            />
+          </div>
+        </div>
+
+        {/* Portal link */}
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
           <h3 className="font-semibold text-sm text-primary mb-2">Portal de Verificacion</h3>
-          <p className="text-xs text-muted-foreground mb-3">Comparte este enlace para que los miembros se verifiquen:</p>
+          <p className="text-xs text-muted-foreground mb-3">Comparte este enlace con tus miembros para que puedan verificarse:</p>
           <div className="flex gap-2">
-            <Input readOnly value={`${window.location.origin}/verify?guild=${guildId}`} className="text-xs" />
+            <Input readOnly value={`${window.location.origin}/verify?guild=${guildId}`} className="text-xs font-mono" />
             <Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/verify?guild=${guildId}`)}>Copiar</Button>
           </div>
         </div>

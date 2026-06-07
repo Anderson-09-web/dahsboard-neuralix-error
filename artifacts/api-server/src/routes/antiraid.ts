@@ -15,7 +15,7 @@ const defaultConfig = {
 };
 
 router.get("/guilds/:guildId/antiraid", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   let [cfg] = await db.select().from(antiraidConfigsTable).where(eq(antiraidConfigsTable.guildId, guildId));
   if (!cfg) {
     const [created] = await db.insert(antiraidConfigsTable).values({ guildId, ...defaultConfig }).returning();
@@ -25,7 +25,7 @@ router.get("/guilds/:guildId/antiraid", requireAuth, async (req, res) => {
 });
 
 router.put("/guilds/:guildId/antiraid", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const existing = await db.select().from(antiraidConfigsTable).where(eq(antiraidConfigsTable.guildId, guildId));
   let cfg;
   if (existing.length > 0) {
@@ -39,7 +39,7 @@ router.put("/guilds/:guildId/antiraid", requireAuth, async (req, res) => {
 });
 
 router.get("/guilds/:guildId/antiraid/stats", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   let [stats] = await db.select().from(antiraidStatsTable).where(eq(antiraidStatsTable.guildId, guildId));
   if (!stats) {
     const [created] = await db.insert(antiraidStatsTable).values({ guildId }).returning();

@@ -6,7 +6,7 @@ import { requireAuth } from "../lib/auth";
 const router = Router();
 
 router.get("/guilds/:guildId/verification", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   let [cfg] = await db.select().from(verificationConfigsTable).where(eq(verificationConfigsTable.guildId, guildId));
   if (!cfg) {
     const [created] = await db.insert(verificationConfigsTable).values({ guildId }).returning();
@@ -16,7 +16,7 @@ router.get("/guilds/:guildId/verification", requireAuth, async (req, res) => {
 });
 
 router.put("/guilds/:guildId/verification", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const existing = await db.select().from(verificationConfigsTable).where(eq(verificationConfigsTable.guildId, guildId));
   let cfg;
   if (existing.length > 0) {
@@ -30,7 +30,7 @@ router.put("/guilds/:guildId/verification", requireAuth, async (req, res) => {
 });
 
 router.post("/verify/:guildId", requireAuth, async (req, res) => {
-  const { guildId } = req.params;
+  const guildId = req.params.guildId as string;
   const [cfg] = await db.select().from(verificationConfigsTable).where(eq(verificationConfigsTable.guildId, guildId));
   if (!cfg || !cfg.enabled) {
     res.json({ success: false, message: "Verification is not enabled for this server", roleAssigned: false });
