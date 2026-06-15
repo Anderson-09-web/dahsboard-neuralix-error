@@ -4,12 +4,13 @@
  * Loads configuration from the `app_configs` DB table first,
  * then falls back to environment variables.
  *
- * This means you only need DATABASE_URL + SESSION_SECRET in
- * Vercel / any host — everything else can be stored in the DB.
+ * URL cascade: when `api_url` or `frontend_url` are set via setConfig,
+ * dependent keys (discord_redirect_uri, etc.) are auto-derived unless
+ * an explicit override exists. Changes are recorded in `url_history`.
  */
 
 import { db, appConfigsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { urlHistoryTable } from "@workspace/db";
 import { logger } from "./logger";
 
 // In-memory cache so we don't hit DB on every request
@@ -41,9 +42,12 @@ export async function getConfig(key: string): Promise<string | undefined> {
 }
 
 /**
- * Set a config value in the DB and refresh cache.
+ * Set a config value in the DB, refresh cache, record history,
+ * and cascade-update dependent keys.
  */
-export async function setConfig(key: string, value: string, description?: string): Promise<void> {
+export async function setConfig(key: string, value: string, description?: string, source = "admin"): Promise<void> {
+  const oldValue = cache.get(key);
+
   await db
     .insert(appConfigsTable)
     .values({ key, value, description })
@@ -52,6 +56,35 @@ export async function setConfig(key: string, value: string, description?: string
       set: { value, description, updatedAt: new Date() },
     });
   cache.set(key, value);
+
+  // Record history if value actually changed
+  if (oldValue !== value) {
+    try {
+      await db.insert(urlHistoryTable).values({ key, oldValue, newValue: value, source });
+    } catch (err) {
+      logger.warn({ err }, "Could not write url_history");
+    }
+  }
+
+  // Cascade: when api_url changes, auto-derive discord_redirect_uri
+  // (only if no explicit discord_redirect_uri override exists)
+  if (key === "api_url") {
+    const hasExplicitRedirect = await db.select().from(appConfigsTable)
+      .then(rows => rows.find(r => r.key === "discord_redirect_uri" && r.description?.includes("manual-override")));
+    if (!hasExplicitRedirect) {
+      const base = value.replace(/\/+$/, "");
+      const newRedirectUri = `${base}/api/auth/discord/callback`;
+      await db
+        .insert(appConfigsTable)
+        .values({ key: "discord_redirect_uri", value: newRedirectUri, description: "auto-derived from api_url" })
+        .onConflictDoUpdate({
+          target: appConfigsTable.key,
+          set: { value: newRedirectUri, description: "auto-derived from api_url", updatedAt: new Date() },
+        });
+      cache.set("discord_redirect_uri", newRedirectUri);
+      logger.info({ newRedirectUri }, "Auto-updated discord_redirect_uri from api_url change");
+    }
+  }
 }
 
 /**
