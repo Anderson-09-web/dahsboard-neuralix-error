@@ -18,13 +18,18 @@ const features = [
 export default function LandingPage() {
   const [, setLocation] = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const { data: user } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
-  const { data: authUrl } = useGetDiscordAuthUrl({ query: { queryKey: getGetDiscordAuthUrlQueryKey() } });
-  const { data: announcements } = useGetAnnouncements({ query: { queryKey: getGetAnnouncementsQueryKey() } });
+  const { data: user } = useGetMe({ query: { queryKey: getGetMeQueryKey(), retry: false } });
+  const { data: authUrl, isError: authUrlError, isLoading: authUrlLoading } = useGetDiscordAuthUrl({
+    query: { queryKey: getGetDiscordAuthUrlQueryKey(), retry: 1 },
+  });
+  const { data: announcements } = useGetAnnouncements({ query: { queryKey: getGetAnnouncementsQueryKey(), retry: false } });
+
+  const apiUnreachable = authUrlError && !authUrlLoading;
 
   const handleLogin = () => {
     if (user) { setLocation("/servers"); return; }
-    if (authUrl?.url) window.location.href = authUrl.url;
+    if (authUrl?.url) { window.location.href = authUrl.url; return; }
+    // Fallback: if API unreachable, show nothing (button will be disabled)
   };
 
   const published = announcements?.filter((a) => a.published) || [];
@@ -45,7 +50,7 @@ export default function LandingPage() {
             <button onClick={toggleTheme} className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-all" data-testid="landing-theme-toggle">
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            <Button onClick={handleLogin} data-testid="btn-login" className="gap-2">
+            <Button onClick={handleLogin} data-testid="btn-login" className="gap-2" disabled={!user && !authUrl?.url}>
               {user ? "Ir al panel" : "Iniciar sesion con Discord"}
               <ArrowRight className="w-4 h-4" />
             </Button>
@@ -53,8 +58,16 @@ export default function LandingPage() {
         </div>
       </header>
 
+      {/* API unreachable banner */}
+      {apiUnreachable && (
+        <div className="fixed top-16 left-0 right-0 z-40 bg-amber-500/10 border-b border-amber-500/30 px-6 py-2.5 flex items-center justify-center gap-2 text-sm text-amber-300">
+          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+          API no disponible — configura <code className="font-mono text-amber-200 mx-1">VITE_API_URL</code> en Vercel apuntando a tu servidor backend.
+        </div>
+      )}
+
       {/* Hero */}
-      <section className="pt-32 pb-24 px-6">
+      <section className={`pb-24 px-6 ${apiUnreachable ? "pt-44" : "pt-32"}`}>
         <div className="max-w-4xl mx-auto text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-8">
@@ -71,8 +84,8 @@ export default function LandingPage() {
               Neuralix Enterprise te da el poder de proteger, gestionar y optimizar tu servidor con mas de 20 modulos de seguridad, IA integrada y analisis en tiempo real.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button size="lg" onClick={handleLogin} className="gap-2 text-base px-8" data-testid="btn-login-hero">
-                {user ? "Ir al panel ahora" : "Conectar con Discord"}
+              <Button size="lg" onClick={handleLogin} className="gap-2 text-base px-8" data-testid="btn-login-hero" disabled={!user && !authUrl?.url}>
+                {authUrlLoading ? "Cargando..." : user ? "Ir al panel ahora" : "Conectar con Discord"}
                 <ArrowRight className="w-5 h-5" />
               </Button>
               <Button size="lg" variant="outline" className="gap-2 text-base px-8" onClick={() => setLocation("/docs")}>
@@ -149,8 +162,8 @@ export default function LandingPage() {
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-4xl font-black mb-6">Empieza hoy, gratis</h2>
           <p className="text-muted-foreground mb-8">Conecta tu servidor y activa la proteccion en menos de 2 minutos.</p>
-          <Button size="lg" onClick={handleLogin} className="gap-2 text-base px-10" data-testid="btn-cta">
-            Conectar Discord <ArrowRight className="w-5 h-5" />
+          <Button size="lg" onClick={handleLogin} className="gap-2 text-base px-10" data-testid="btn-cta" disabled={!user && !authUrl?.url}>
+            {user ? "Ir al panel" : "Conectar Discord"} <ArrowRight className="w-5 h-5" />
           </Button>
         </div>
       </section>

@@ -299,6 +299,19 @@ async function parseSuccessBody(
     return null;
   }
 
+  // Guard: if a 200 response has content-type text/html it is almost certainly
+  // a CDN / SPA catch-all rewrite (e.g. Vercel serving index.html for /api/*).
+  // Treat it as a 503 so callers get a proper ApiError instead of silently
+  // receiving an HTML string that breaks JSON parsing downstream.
+  const mediaType = getMediaType(response.headers);
+  if (mediaType === "text/html" || mediaType?.startsWith("text/html")) {
+    const synthetic = new Response(
+      JSON.stringify({ error: "API server not reachable. Configure VITE_API_URL to point to the backend." }),
+      { status: 503, statusText: "Service Unavailable", headers: { "content-type": "application/json" } },
+    );
+    throw new ApiError(synthetic, { error: "API server not reachable" }, requestInfo);
+  }
+
   const effectiveType =
     responseType === "auto" ? inferResponseType(response) : responseType;
 
