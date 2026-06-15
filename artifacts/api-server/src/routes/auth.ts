@@ -9,14 +9,30 @@ const router = Router();
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET!;
 
-function getRedirectUri(req: any): string {
+/**
+ * Resolve the OAuth2 redirect URI.
+ *
+ * Priority order (highest → lowest):
+ * 1. DISCORD_REDIRECT_URI — explicit override, ideal for Vercel / fixed domains
+ * 2. APP_URL — if set, derive the callback from it
+ * 3. REPLIT_DOMAINS — first domain in the list (changes on every Replit deploy)
+ * 4. localhost fallback for local development
+ */
+function getRedirectUri(): string {
+  if (process.env.DISCORD_REDIRECT_URI) {
+    return process.env.DISCORD_REDIRECT_URI.trim();
+  }
+  if (process.env.APP_URL) {
+    const base = process.env.APP_URL.split(",")[0].trim().replace(/\/+$/, "");
+    return `${base}/api/auth/discord/callback`;
+  }
   const domain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
   if (domain) return `https://${domain}/api/auth/discord/callback`;
   return `http://localhost:80/api/auth/discord/callback`;
 }
 
 router.get("/auth/discord/url", (req, res) => {
-  const redirectUri = getRedirectUri(req);
+  const redirectUri = getRedirectUri();
   const params = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID,
     redirect_uri: redirectUri,
@@ -33,7 +49,7 @@ router.get("/auth/discord/callback", async (req, res) => {
     return;
   }
   try {
-    const redirectUri = getRedirectUri(req);
+    const redirectUri = getRedirectUri();
     const tokenRes = await axios.post(
       "https://discord.com/api/oauth2/token",
       new URLSearchParams({
