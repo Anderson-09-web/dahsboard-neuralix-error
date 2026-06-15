@@ -3,38 +3,46 @@ import axios from "axios";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { signToken, requireAuth } from "../lib/auth";
+import { getConfig } from "../lib/config";
 
 const router = Router();
 
-const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
-const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET!;
-
 /**
- * Resolve the OAuth2 redirect URI.
+ * Resolve the Discord OAuth2 redirect URI.
  *
- * Priority order (highest → lowest):
- * 1. DISCORD_REDIRECT_URI — explicit override, ideal for Vercel / fixed domains
- * 2. APP_URL — if set, derive the callback from it
- * 3. REPLIT_DOMAINS — first domain in the list (changes on every Replit deploy)
- * 4. localhost fallback for local development
+ * Priority (highest → lowest):
+ * 1. DB key `discord_redirect_uri` or env DISCORD_REDIRECT_URI — explicit override
+ * 2. DB key `app_url` or env APP_URL — derive callback from base URL
+ * 3. REPLIT_DOMAINS — first domain (changes on each Replit restart)
+ * 4. localhost fallback
  */
-function getRedirectUri(): string {
-  if (process.env.DISCORD_REDIRECT_URI) {
-    return process.env.DISCORD_REDIRECT_URI.trim();
-  }
-  if (process.env.APP_URL) {
-    const base = process.env.APP_URL.split(",")[0].trim().replace(/\/+$/, "");
+async function getRedirectUri(): Promise<string> {
+  const explicit = await getConfig("discord_redirect_uri");
+  if (explicit) return explicit.trim();
+
+  const appUrl = await getConfig("app_url");
+  if (appUrl) {
+    const base = appUrl.split(",")[0].trim().replace(/\/+$/, "");
     return `${base}/api/auth/discord/callback`;
   }
+
   const domain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
   if (domain) return `https://${domain}/api/auth/discord/callback`;
+
   return `http://localhost:80/api/auth/discord/callback`;
 }
 
-router.get("/auth/discord/url", (req, res) => {
-  const redirectUri = getRedirectUri();
+router.get("/auth/discord/url", async (req, res) => {
+  const clientId = await getConfig("discord_client_id");
+  const redirectUri = await getRedirectUri();
+
+  if (!clientId) {
+    res.status(500).json({ error: "DISCORD_CLIENT_ID not configured. Add it to app_configs in the DB or as an env var." });
+    return;
+  }
+
   const params = new URLSearchParams({
-    client_id: DISCORD_CLIENT_ID,
+    client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
     scope: "identify email guilds",
@@ -49,12 +57,20 @@ router.get("/auth/discord/callback", async (req, res) => {
     return;
   }
   try {
-    const redirectUri = getRedirectUri();
+    const clientId = await getConfig("discord_client_id");
+    const clientSecret = await getConfig("discord_client_secret");
+    const redirectUri = await getRedirectUri();
+
+    if (!clientId || !clientSecret) {
+      res.redirect("/?error=missing_discord_config");
+      return;
+    }
+
     const tokenRes = await axios.post(
       "https://discord.com/api/oauth2/token",
       new URLSearchParams({
-        client_id: DISCORD_CLIENT_ID,
-        client_secret: DISCORD_CLIENT_SECRET,
+        client_id: clientId,
+        client_secret: clientSecret,
         grant_type: "authorization_code",
         code,
         redirect_uri: redirectUri,
@@ -107,10 +123,12 @@ router.get("/auth/discord/callback", async (req, res) => {
     }
 
     const token = signToken({ userId: user.id, discordId: user.discordId, isOwner: user.isOwner });
+    const isProduction = process.env.NODE_ENV === "production";
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: isProduction,
+      // Use 'none' in production to allow cross-domain cookies (Vercel frontend + Replit API)
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     res.redirect("/servers");

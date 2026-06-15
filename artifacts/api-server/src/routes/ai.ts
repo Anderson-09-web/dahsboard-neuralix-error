@@ -3,17 +3,21 @@ import Groq from "groq-sdk";
 import { db, antiraidConfigsTable, verificationConfigsTable, ticketConfigsTable, logsConfigsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../lib/auth";
+import { getConfig } from "../lib/config";
 
 const router = Router();
 
-// Initialize Groq client only if API key is present
-const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
-
 const SYSTEM_PROMPT = `Eres el Asistente de IA de Neuralix, una plataforma enterprise de gestión de bots de Discord.
 Ayudas a los administradores de servidores a configurar: AntiRaid, AntiNuke, Verificación, Tickets, Logs, Backups y seguridad general.
-Responde siempre en español, de forma concisa y profesional. 
+Responde siempre en español, de forma concisa y profesional.
 Si el usuario pregunta algo no relacionado con Discord o Neuralix, redirige amablemente hacia temas relevantes.
 Máximo 3 párrafos por respuesta.`;
+
+async function getGroqClient(): Promise<Groq | null> {
+  const apiKey = await getConfig("groq_api_key");
+  if (!apiKey) return null;
+  return new Groq({ apiKey });
+}
 
 router.post("/guilds/:guildId/ai/analyze", requireAuth, async (req, res) => {
   const guildId = req.params.guildId as string;
@@ -42,15 +46,15 @@ router.post("/guilds/:guildId/ai/analyze", requireAuth, async (req, res) => {
     score -= 5;
   }
   if (!tickets?.enabled) {
-    recommendations.push({ category: "Soporte", severity: "low", title: "Sistema de tickets desactivado", description: "Configura el sistema de tickets para gestionar las solicitudes de soporte eficientemente." });
+    recommendations.push({ category: "Soporte", severity: "low", title: "Sistema de tickets desactivado", description: "Configura el sistema de tickets para gestionar las solicitudes de soporte." });
     score -= 5;
   }
   if (!logs?.enabled) {
-    recommendations.push({ category: "Logs", severity: "medium", title: "Registros desactivados", description: "Activa los logs para rastrear toda la actividad del servidor y acciones de moderación." });
+    recommendations.push({ category: "Logs", severity: "medium", title: "Registros desactivados", description: "Activa los logs para rastrear toda la actividad del servidor." });
     score -= 10;
   }
   if (recommendations.length === 0) {
-    recommendations.push({ category: "General", severity: "info", title: "Servidor bien configurado", description: "La configuración de seguridad de tu servidor se ve bien. Sigue monitoreando los cambios." });
+    recommendations.push({ category: "General", severity: "info", title: "Servidor bien configurado", description: "La configuración de seguridad de tu servidor se ve bien." });
   }
 
   res.json({
@@ -70,7 +74,8 @@ router.post("/guilds/:guildId/ai/chat", requireAuth, async (req, res) => {
     return;
   }
 
-  // Use Groq if available, otherwise fall back to static responses
+  const groq = await getGroqClient();
+
   if (groq) {
     try {
       const completion = await groq.chat.completions.create({
@@ -85,22 +90,20 @@ router.post("/guilds/:guildId/ai/chat", requireAuth, async (req, res) => {
 
       const response = completion.choices[0]?.message?.content || "Lo siento, no pude generar una respuesta.";
       const suggestions = ["¿Cómo activo AntiRaid?", "Configurar verificación", "Sistema de tickets", "Analizar seguridad del servidor"];
-
       res.json({ response, suggestions });
       return;
     } catch (err: any) {
       req.log.error({ err }, "Groq AI chat error");
-      // Fall through to static responses on error
     }
   }
 
-  // Static fallback responses
+  // Static fallback
   const responses: Record<string, string> = {
-    antiraid: "Para proteger tu servidor de raids, activa el módulo AntiRaid y configura AntiAlt para requerir cuentas con más de 7 días de antigüedad. También activa AntiBot para bloquear cuentas automatizadas.",
+    antiraid: "Para proteger tu servidor de raids, activa el módulo AntiRaid y configura AntiAlt para requerir cuentas con más de 7 días. También activa AntiBot para bloquear cuentas automatizadas.",
     verification: "Configura el sistema de verificación asignando un rol post-verificación, habilitando AntiVPN y estableciendo una antigüedad mínima de cuenta.",
-    tickets: "Crea un panel de tickets configurando la categoría, el rol de soporte y el canal de transcripciones. Los usuarios podrán abrir tickets directamente en Discord.",
-    premium: "Neuralix Premium ofrece IA avanzada, backups ilimitados y protección AntiNuke. Consulta la sección Premium para ver las opciones de plan.",
-    default: "Soy el Asistente de IA de Neuralix. Puedo ayudarte a configurar la seguridad, tickets, verificación y más de tu servidor. Pregúntame sobre cualquier función.",
+    tickets: "Crea un panel de tickets configurando la categoría, el rol de soporte y el canal de transcripciones.",
+    premium: "Neuralix Premium ofrece IA avanzada, backups ilimitados y protección AntiNuke.",
+    default: "Soy el Asistente de IA de Neuralix. Puedo ayudarte a configurar seguridad, tickets, verificación y más.",
   };
 
   const lower = message.toLowerCase();

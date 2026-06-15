@@ -21,14 +21,13 @@ app.use(
   }),
 );
 
-// Build allowed origins list:
-// 1. APP_URL env var takes highest priority (fixed production URL, e.g. Vercel)
-// 2. REPLIT_DOMAINS covers all active Replit dev/preview domains (comma-separated)
-// 3. localhost fallbacks for local development
+// Build allowed origins:
+// 1. APP_URL — fixed production URL (Vercel frontend, etc.)
+// 2. REPLIT_DOMAINS — active Replit preview domains
+// 3. localhost fallbacks
 const allowedOrigins: string[] = [];
 
 if (process.env.APP_URL) {
-  // Support comma-separated list in APP_URL too
   process.env.APP_URL.split(",").forEach((u) => {
     const url = u.trim().replace(/\/+$/, "");
     if (url) allowedOrigins.push(url);
@@ -47,10 +46,9 @@ allowedOrigins.push("http://localhost:5173", "http://localhost:23133", "http://l
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow requests with no origin (server-to-server, curl, etc.)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
-      // In development, allow any origin to avoid blocking during URL changes
+      // In development allow any origin
       if (process.env.NODE_ENV !== "production") return callback(null, true);
       callback(new Error(`CORS: origin '${origin}' not allowed`));
     },
