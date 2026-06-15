@@ -17,6 +17,7 @@ import PremiumPage from "@/pages/PremiumPage";
 import BackupsPage from "@/pages/BackupsPage";
 import SupportPage from "@/pages/SupportPage";
 import AdminPage from "@/pages/AdminPage";
+import AdminConfigPage from "@/pages/AdminConfigPage";
 import NotFound from "@/pages/not-found";
 import AuthCallback from "@/pages/AuthCallback";
 import DocsPage from "@/pages/DocsPage";
@@ -44,6 +45,7 @@ function Router() {
       <Route path="/verify" component={VerifyPortal} />
       <Route path="/support" component={SupportPage} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/admin/config" component={AdminConfigPage} />
       <Route path="/docs" component={DocsPage} />
       <Route path="/auth/callback" component={AuthCallback} />
       <Route component={NotFound} />

@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { db, usersTable, guildConfigsTable, ticketsTable, licensesTable, blacklistTable, backupsTable, supportTicketsTable, secondaryAdminsTable } from "@workspace/db";
+import { db, usersTable, guildConfigsTable, ticketsTable, licensesTable, blacklistTable, backupsTable, supportTicketsTable, secondaryAdminsTable, appConfigsTable } from "@workspace/db";
 import { eq, count } from "drizzle-orm";
 import { requireOwner, requireAuth } from "../lib/auth";
+import { setConfig, invalidateConfigCache } from "../lib/config";
 import type { AdminPermission } from "@workspace/db";
 
 const router = Router();
@@ -82,6 +83,34 @@ router.patch("/admin/admins/:id", requireOwner, async (req, res) => {
 router.delete("/admin/admins/:id", requireOwner, async (req, res) => {
   await db.delete(secondaryAdminsTable).where(eq(secondaryAdminsTable.id, Number(req.params.id)));
   res.status(204).end();
+});
+
+// ─── App Config ───────────────────────────────────────────────────────────────
+// Sensitive keys whose values are masked in GET responses
+const SENSITIVE_KEYS = new Set(["discord_client_secret", "discord_bot_token", "groq_api_key"]);
+
+router.get("/admin/config", requireOwner, async (_req, res) => {
+  const rows = await db.select().from(appConfigsTable).orderBy(appConfigsTable.key);
+  const safe = rows.map((r) => ({
+    key: r.key,
+    // Mask sensitive values so they are not exposed in the response
+    value: SENSITIVE_KEYS.has(r.key) ? "••••••••••••" : r.value,
+    description: r.description,
+    updatedAt: r.updatedAt,
+  }));
+  res.json(safe);
+});
+
+router.put("/admin/config/:key", requireOwner, async (req, res) => {
+  const key = req.params.key as string;
+  const { value, description } = req.body as { value: string; description?: string };
+  if (!value || typeof value !== "string") {
+    res.status(400).json({ error: "value es requerido" });
+    return;
+  }
+  await setConfig(key, value.trim(), description);
+  invalidateConfigCache();
+  res.json({ ok: true, key });
 });
 
 export default router;
